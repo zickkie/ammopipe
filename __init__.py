@@ -9,24 +9,30 @@ bl_info = {
     "doc_url": "",
 }
 
-
 import bpy
-import os
-
 from . import functions
 from . import operators
 from . import panels
+from bpy.app.handlers import persistent
+
+"""
+@persistent
+def load_handler(dummy):
+    print("Load Handler:", bpy.data.filepath)
+"""
+
 
 ##################################
 ########## REGISTRATION ##########
 ##################################
 def register():
-    # operators.register()
+    #bpy.app.handlers.load_post.append(load_handler)
+    operators.register()
     panels.register()
 
 
 def unregister():
-    # operators.unregister()
+    operators.unregister()
     panels.unregister()
 
 
