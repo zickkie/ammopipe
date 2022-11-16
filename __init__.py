@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Ammonite Pipeline",
     "author": "Arthur Shapriro",
-    "version": (0, 1),
+    "version": (0, 0, 2),
     "blender": (3, 3, 1),
     "location": "View3D > N-Panel",
     "description": "Ammonite Animation Stiduio Pipeline",
@@ -26,7 +26,7 @@ def load_handler(dummy):
 ########## REGISTRATION ##########
 ##################################
 def register():
-    #bpy.app.handlers.load_post.append(load_handler)
+    # bpy.app.handlers.load_post.append(load_handler)
     operators.register()
     panels.register()
 

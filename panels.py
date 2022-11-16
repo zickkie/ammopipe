@@ -16,6 +16,33 @@ from .functions import *
 from .operators import *
 
 
+class PIPE_PT_AmmoPipe_Scenes_Workflow_Panel(Panel):
+    """Ammonite Pipeline Scenes Workflow Panel"""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "AmmoPipe"
+    bl_label = "Workflow"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        if any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset"):
+            asset_icon = "CHECKBOX_HLT"
+            layout_icon = "CHECKBOX_DEHLT"
+        else:
+            asset_icon = "CHECKBOX_DEHLT"
+            layout_icon = "CHECKBOX_HLT"
+        col = layout.column(align=True)
+        split = col.split()
+        col1 = split.column(align=True)
+        row = col1.row(align=True)
+        row.operator(PIPE_OT_Set_Workflow_Asset.bl_idname, text="Asset", icon=asset_icon)
+        col2 = split.column(align=True)
+        row = col2.row(align=True)
+        row.operator(PIPE_OT_Set_Workflow_Layout.bl_idname, text="Layout", icon=layout_icon)
+
+
 class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
     """Ammonite Pipeline Naming Panel"""
 
@@ -23,6 +50,10 @@ class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
     bl_region_type = "UI"
     bl_category = "AmmoPipe"
     bl_label = "Naming"
+
+    @classmethod
+    def poll(cls, context):
+        return any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
 
     def draw(self, context):
         layout = self.layout
@@ -102,6 +133,10 @@ class PIPE_PT_AmmoPipe_Scenes_Management_Panel(Panel):
     bl_label = "Scenes Management"
     bl_idname = "PIPE_PT_AmmoPipe_Scenes_Management_Panel"
 
+    @classmethod
+    def poll(cls, context):
+        return not any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -114,7 +149,7 @@ class PIPE_PT_AmmoPipe_Scenes_Management_Panel(Panel):
         row.label(text="Current Scene")
         sc_col_2 = sc_col_split.column(align=True)
         row = sc_col_2.row(align=True)
-        if context.scene.source_scene:
+        if context.scene.ammopipe_source_scene:
             icon = "PINNED"
         else:
             icon = "UNPINNED"
@@ -169,7 +204,7 @@ class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
 
         source_scene = None
         for scene in bpy.data.scenes:
-            if scene.source_scene:
+            if scene.ammopipe_source_scene:
                 source_scene = scene
         if source_scene:
             for coll in source_scene.collection.children_recursive:
@@ -208,7 +243,7 @@ class PIPE_PT_AmmoPipe_Scenes_Save_Panel(Panel):
         name = bpy.path.basename(path_full)
 
         for scene in bpy.data.scenes:
-            if not scene.source_scene:
+            if not scene.ammopipe_source_scene:
                 scene_file_name = (name.split(".blend")[0] + "_" + scene.name + ".blend").replace(
                     "__", "_"
                 )
@@ -244,6 +279,7 @@ ammopipe_collection_share_items = [
 
 
 classes = (
+    PIPE_PT_AmmoPipe_Scenes_Workflow_Panel,
     PIPE_PT_AmmoPipe_Naming_Panel,
     PIPE_PT_AmmoPipe_Versioning_Panel,
     PIPE_PT_AmmoPipe_Scenes_Management_Panel,
@@ -318,15 +354,16 @@ def register():
         description="Scene Name Custom Suffix",
         default="",
     )
-    bpy.types.Scene.source_scene = BoolProperty(
+    bpy.types.Scene.ammopipe_source_scene = BoolProperty(
         name="Source Scene",
         description="Use This Scene as Source",
         default=False,
     )
-    bpy.types.Scene.marked_delete = BoolProperty(
-        name="Marked for Delete",
-        description="Delete this Scene later",
-        default=False,
+    bpy.types.Scene.ammopipe_workflow = EnumProperty(
+        name="Workflow",
+        items=[("Asset", "Asset", ""), ("Layout", "Layout", "")],
+        description="Asset or Layout Workflow",
+        default="Asset",
     )
 
     for cls in classes:
@@ -345,5 +382,5 @@ def unregister():
     del bpy.types.Scene.ammopipe_version_step
     del bpy.types.Collection.ammopipe_collection_share_enum
     del bpy.types.Scene.ammopipe_scene_name_suffix
-    del bpy.types.Scene.source_scene
-    del bpy.types.Scene.marked_delete
+    del bpy.types.Scene.ammopipe_source_scene
+    del bpy.types.Scene.ammopipe_workflow
