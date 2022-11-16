@@ -100,6 +100,36 @@ class PIPE_OT_Unify_Scenes_Names(Operator):
         return {"FINISHED"}
 
 
+class PIPE_OT_Set_Workflow_Asset(Operator):
+    """Use this Workflow type when you create Assets"""
+
+    bl_idname = "pipeline.set_workflow_asset"
+    bl_label = "Set Workflow: Asset"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+
+        for scene in bpy.data.scenes:
+            scene.ammopipe_workflow = "Asset"
+        self.report({"INFO"}, "Current workflow: ASSET")
+        return {"FINISHED"}
+
+
+class PIPE_OT_Set_Workflow_Layout(Operator):
+    """Use this Workflow type when you work with Layouts (e.g. with Linked Libraries)"""
+
+    bl_idname = "pipeline.set_workflow_layout"
+    bl_label = "Set Workflow: Layout"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+
+        for scene in bpy.data.scenes:
+            scene.ammopipe_workflow = "Layout"
+        self.report({"INFO"}, "Current workflow: LAYOUT")
+        return {"FINISHED"}
+
+
 class WM_OT_Add_New_Scene(bpy.types.Operator):
     """Add New Scene with Collections being Linked/Copied (see the "Scenes Collections" sub-panel) from the Source Scene
     \n! Thus some Scene should be marked marked as Source"""
@@ -113,14 +143,14 @@ class WM_OT_Add_New_Scene(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return any(scene for scene in bpy.data.scenes if scene.source_scene)
+        return any(scene for scene in bpy.data.scenes if scene.ammopipe_source_scene)
 
     def execute(self, context):
         name = self.name
         suffix = self.suffix
         if len(suffix) > 0:
             suffix = "_" + suffix
-        source_scene = [scene for scene in bpy.data.scenes if scene.source_scene][0]
+        source_scene = [scene for scene in bpy.data.scenes if scene.ammopipe_source_scene][0]
 
         scene_new = bpy.data.scenes.new(name=name + suffix)
         scene_new.ammopipe_scene_name_suffix = self.suffix
@@ -157,7 +187,7 @@ class PIPE_OT_Set_Source_Scene(Operator):
     def execute(self, context):
 
         for scene in bpy.data.scenes:
-            scene.source_scene = scene == context.scene
+            scene.ammopipe_source_scene = scene == context.scene
 
         return {"FINISHED"}
 
@@ -171,7 +201,7 @@ class WM_OT_Delete_Current_Scene(Operator):
 
     @classmethod
     def poll(cls, context):
-        return not context.scene.source_scene
+        return not context.scene.ammopipe_source_scene
 
     def recursive_orphan_delete(self, data):
         for block in data:
@@ -231,6 +261,8 @@ classes = (
     WM_OT_Delete_Current_Scene,
     PIPE_OT_Set_Source_Scene,
     PIPE_OT_Save_Scenes_Separately,
+    PIPE_OT_Set_Workflow_Asset,
+    PIPE_OT_Set_Workflow_Layout,
 )
 
 

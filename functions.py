@@ -417,7 +417,7 @@ def directory_files() -> Tuple:
 
 
 def unify_scenes_names(context):
-    scenes = [scene.name for scene in bpy.data.scenes if not scene.source_scene]
+    scenes = [scene.name for scene in bpy.data.scenes if not scene.ammopipe_source_scene]
     scenes.sort()
     for name in scenes:
         index = str(scenes.index(name) + 1)
@@ -432,7 +432,7 @@ def unify_scenes_names(context):
             * bool(len(bpy.data.scenes[name].ammopipe_scene_name_suffix))
         )
     for scene in bpy.data.scenes:
-        if scene.source_scene:
+        if scene.ammopipe_source_scene:
             scene.name = "_scene_source" + ("_" + scene.ammopipe_scene_name_suffix) * bool(
                 len(scene.ammopipe_scene_name_suffix)
             )
