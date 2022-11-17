@@ -146,30 +146,55 @@ class WM_OT_Add_New_Scene(bpy.types.Operator):
         return any(scene for scene in bpy.data.scenes if scene.ammopipe_source_scene)
 
     def execute(self, context):
-        name = self.name
         suffix = self.suffix
         if len(suffix) > 0:
             suffix = "_" + suffix
+        # Ensure all the blocks have info about themselves
+        # They will be copied in a new scene thus we'll have
+        # a method to connect a copied block with its original
         source_scene = [scene for scene in bpy.data.scenes if scene.ammopipe_source_scene][0]
+        blocks_recursive_property(source_scene, source_scene.collection)
 
-        scene_new = bpy.data.scenes.new(name=name + suffix)
+        # Create a copy Scene
+        bpy.ops.scene.new(type="FULL_COPY")
+        scene_new = context.window.scene
+        scene_new.name = self.name + suffix
+        scene_new.ammopipe_workflow = source_scene.ammopipe_workflow
         scene_new.ammopipe_scene_name_suffix = self.suffix
-        for coll in source_scene.collection.children:
-            if coll.ammopipe_collection_share_enum == "Link":
-                scene_new.collection.children.link(coll)
-        context.window.scene = scene_new
+        scene_new.ammopipe_source_scene = False
 
         add_name = "_" + scene_new.name
-        colls_and_obs_recursive_dupli(
-            source_scene, source_scene.collection, scene_new.collection, add_name, True
-        )
-        # Copy Actions
-        for coll in scene_new.collection.children_recursive:
-            for ob_copy in coll.objects:
-                if ob_copy.animation_data and ob_copy.animation_data.action:
-                    action_copy = ob_copy.animation_data.action.copy()
-                    action_copy.name = ob_copy.animation_data.action.name + add_name
-                    ob_copy.animation_data.action = action_copy
+        # Unlink and delete the Collections that should have been shared instead
+        for coll_new in scene_new.collection.children:
+            if (
+                bpy.data.collections[
+                    coll_new.ammopipe_source_collection
+                ].ammopipe_collection_share_enum
+                == "Link"
+            ):
+                for child_coll_new in coll_new.children_recursive:
+                    for ob_new in child_coll_new.objects:
+                        if ob_new.animation_data and ob_new.animation_data.action:
+                            bpy.data.actions.remove(ob_new.animation_data.action)
+                        bpy.data.objects.remove(ob_new)
+                    bpy.data.collections.remove(child_coll_new)
+                bpy.data.collections.remove(coll_new)
+        # Link them in a copied Scene
+        for coll_old in source_scene.collection.children:
+            if coll_old.ammopipe_collection_share_enum == "Link":
+                scene_new.collection.children.link(coll_old)
+        # Return correct names for the copied Collections, Objects and Actions
+        for coll_new in scene_new.collection.children_recursive:
+            coll_source = bpy.data.collections[coll_new.ammopipe_source_collection]
+            if coll_source.ammopipe_collection_share_enum == "Copy":
+                for ob_new in coll_new.objects:
+                    if ob_new.animation_data and ob_new.animation_data.action:
+                        action = ob_new.animation_data.action
+                        action_source = bpy.data.actions[action.ammopipe_source_action]
+                        ob_new.animation_data.action.name = action_source.name + add_name
+                    ob_source = bpy.data.objects[ob_new.ammopipe_source_object]
+                    ob_new.name = ob_source.name + add_name
+                coll_new.name = coll_source.name + add_name
 
         return {"FINISHED"}
 
@@ -212,6 +237,22 @@ class WM_OT_Delete_Current_Scene(Operator):
 
     def execute(self, context):
         datas = [bpy.data.collections, bpy.data.objects, bpy.data.meshes, bpy.data.actions]
+
+        for coll_del in context.scene.collection.children_recursive:
+            del_state = True
+            if any(
+                scene
+                for scene in bpy.data.scenes
+                if coll_del in scene.collection.children_recursive and scene is not context.scene
+            ):
+                del_state = False
+            if del_state:
+                for ob_del in coll_del.objects:
+                    if ob_del.animation_data and ob_del.animation_data.action:
+                        bpy.data.actions.remove(ob_del.animation_data.action)
+                    bpy.data.objects.remove(ob_del)
+                bpy.data.collections.remove(coll_del)
+
         bpy.data.scenes.remove(context.scene, do_unlink=True)
         for data in datas:
             self.recursive_orphan_delete(data)

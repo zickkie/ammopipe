@@ -216,6 +216,7 @@ class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
                     col2 = split.column()
                     row = col2.row()
                     row.prop(coll, "ammopipe_collection_share_enum", expand=True)
+
         else:
             row = layout.row()
             row.label(text="Set the Source Scene first!", icon="ERROR")
@@ -267,10 +268,10 @@ class PIPE_PT_AmmoPipe_Scenes_Save_Panel(Panel):
 
 
 ammopipe_collection_share_items = [
-    ("Link", "Link", "Share this Collection with the newly created Scene", "LINKED", 0),
+    ("Link", "Share", "Share this Collection with the newly created Scene", "LINKED", 0),
     (
         "Copy",
-        "Copy",
+        "Duplicate",
         "Copy and Localize this Collection into the newly created Scene",
         "COPYDOWN",
         1,
@@ -349,6 +350,9 @@ def register():
         description="Share or Copy this Collection among the other Scenes",
         default="Link",
     )
+    bpy.types.Collection.ammopipe_source_collection = StringProperty(default="")
+    bpy.types.Object.ammopipe_source_object = StringProperty(default="")
+    bpy.types.Action.ammopipe_source_action = StringProperty(default="")
     bpy.types.Scene.ammopipe_scene_name_suffix = StringProperty(
         name="Name Suffix",
         description="Scene Name Custom Suffix",
@@ -381,6 +385,9 @@ def unregister():
     del bpy.types.Scene.ammopipe_naming_use_refs
     del bpy.types.Scene.ammopipe_version_step
     del bpy.types.Collection.ammopipe_collection_share_enum
+    del bpy.types.Collection.ammopipe_source_collection
+    del bpy.types.Object.ammopipe_source_object
+    del bpy.types.Action.ammopipe_source_action
     del bpy.types.Scene.ammopipe_scene_name_suffix
     del bpy.types.Scene.ammopipe_source_scene
     del bpy.types.Scene.ammopipe_workflow
