@@ -438,13 +438,47 @@ def unify_scenes_names(context):
             )
 
 
+def blocks_recursive_property(scene, coll):
+    for source_coll in coll.children:
+        source_coll.ammopipe_source_collection = source_coll.name
+        if coll is not scene.collection:
+            source_coll.ammopipe_collection_share_enum = coll.ammopipe_collection_share_enum
+        for source_obj in source_coll.objects:
+            source_obj.ammopipe_source_object = source_obj.name
+            if source_obj.animation_data and source_obj.animation_data.action:
+                source_obj.animation_data.action.ammopipe_source_action = (
+                    source_obj.animation_data.action.name
+                )
+        if len(source_coll.children) > 0:
+            blocks_recursive_property(scene, source_coll)
+
+
+"""
 def colls_and_obs_recursive_dupli(scene, collection, collection_dst, add_name, check_copy):
     for coll in collection.children:
         # Pass the "Link" collections if we expect them here
         if check_copy and coll.ammopipe_collection_share_enum == "Link":
             continue
-        # Duplicate Collection
-        coll_copy = coll.copy()
+        # Duplicate Collection if it's Local
+        # Create new if it's overridden
+        # (as we cannot (un)link to an overridden one)
+        if not coll.override_library:
+            coll_copy = coll.copy()
+            coll_copy.name = coll.name + add_name
+        else:
+            coll_copy = bpy.data.collections.new(coll.name + add_name)
+            coll_copy.color_tag = coll.color_tag
+            original_parents = list(
+                [
+                    scene_collection
+                    for scene_collection in scene.collection.children_recursive
+                    if coll.name in scene_collection.children
+                ]
+            )
+            copy_parents = list([coll.name + add_name for coll in original_parents])
+            for scene_collection in scene.collection.children_recursive:
+                if scene_collection.name in copy_parents:
+                    scene_collection.children.link(coll_copy)
         # Unlink the original children if we are not inside the LO collection
         coll_copy_children = list(
             [child for child in coll_copy.children if not coll_copy.override_library]
@@ -452,24 +486,23 @@ def colls_and_obs_recursive_dupli(scene, collection, collection_dst, add_name, c
         for child in coll_copy_children:
             if child.name in coll.children:
                 coll_copy.children.unlink(child)
-        coll_copy.name = coll.name + add_name
-        # Object and object data stuff should be made for the non-LO collections only
-        if not coll.override_library:
-            # Duplicate objects
-            for ob in list(coll.objects):
-                ob_copy = ob.copy()
-                ob_copy.name = ob.name + add_name
-                # Duplicate object data if exists
+        # Duplicate objects
+        for ob in list(coll.objects):
+            ob_copy = ob.copy()
+            ob_copy.name = ob.name + add_name
+            # Duplicate object data if exists
+            # Object data should be duplicated for the non-LO collections only
+            if not coll.override_library:
                 if ob.data:
                     data = ob.data.copy()
                     data.name = ob_copy.name
                     ob_copy.data = data
-                # Link copied object to a copied collection
-                if not ob_copy.name in coll_copy.objects:
-                    coll_copy.objects.link(ob_copy)
-                # Unlink the original objects from a copied collection
-                if ob.name in coll_copy.objects:
-                    coll_copy.objects.unlink(ob)
+            # Link copied object to a copied collection
+            if not ob_copy.name in coll_copy.objects:
+                coll_copy.objects.link(ob_copy)
+            # Unlink the original objects from a copied collection
+            if ob.name in coll_copy.objects:
+                coll_copy.objects.unlink(ob)
         # Unlink the copied collection from the original parent
         if coll_copy.name in collection.children and collection is not scene.collection:
             collection.children.unlink(coll_copy)
@@ -477,6 +510,7 @@ def colls_and_obs_recursive_dupli(scene, collection, collection_dst, add_name, c
         if coll_copy.name not in collection_dst.children:
             collection_dst.children.link(coll_copy)
         # Recursion with new parameters
-        if not coll.override_library:
-            if len(coll.children) > 0:
-                colls_and_obs_recursive_dupli(scene, coll, coll_copy, add_name, False)
+        # if not coll.override_library:
+        if len(coll.children) > 0:
+            colls_and_obs_recursive_dupli(scene, coll, coll_copy, add_name, False)
+"""
