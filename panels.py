@@ -92,6 +92,70 @@ class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
         org = row.operator(PIPE_OT_Organize_Scene.bl_idname, text="Organize Scene")
         org.asset_name = scene.ammopipe_naming_asset_name
 
+        row = col.row()
+        row.separator(factor=1.0)
+
+        row_info = col.row()
+        row_info.prop(scene, "ammopipe_naming_pop_up_info", text="", icon="INFO")
+        row_info.enabled = False
+
+
+class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
+    """Ammonite Pipeline Naming Issues Panel"""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "AmmoPipe"
+    bl_label = "Naming Issues"
+    bl_order = 0
+    bl_parent_id = "PIPE_PT_AmmoPipe_Naming_Panel"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        col = layout.column(align=True)
+
+        collections = {
+            bpy.data.objects: ("OBJECT_DATAMODE", "bpy.data.objects"),
+            bpy.data.meshes: ("MESH_DATA", "bpy.data.meshes"),
+            bpy.data.images: ("IMAGE_DATA", "bpy.data.images"),
+            bpy.data.materials: ("MATERIAL", "bpy.data.materials"),
+            bpy.data.armatures: ("ARMATURE_DATA", "bpy.data.armatures"),
+            bpy.data.lattices: ("LATTICE_DATA", "bpy.data.lattices"),
+            bpy.data.cameras: ("CAMERA_DATA", "bpy.data.cameras"),
+            bpy.data.lights: ("LIGHT_DATA", "bpy.data.lights"),
+        }
+
+        if not any(
+            [
+                block
+                for block in block_collection
+                if block.name != naming_ussues(scene, block, block_collection)
+            ]
+            for block_collection in collections.keys()
+        ):
+            row = col.row()
+            row.label(text="All names are standardized!")
+        else:
+            row = col.row()
+            row.operator(PIPE_OT_Fix_Names_All.bl_idname, text="Rename ALL", icon="SORTALPHA")
+            row = col.row()
+            row.separator(factor=2.0)
+
+        for block_collection in collections.keys():
+            for block in block_collection:
+                if block.name != naming_ussues(scene, block, block_collection):
+                    row = col.row()
+                    row.label(icon=collections[block_collection][0])
+                    row.label(text=block.name)
+                    row.label(icon="RIGHTARROW_THIN")
+                    row.label(text=naming_ussues(scene, block, block_collection))
+                    rename = row.operator(
+                        PIPE_OT_Fix_Name.bl_idname, text="", icon="SORTALPHA", emboss=True
+                    )
+                    rename.block = repr(block)
+                    rename.collection = collections[block_collection][1]
+
 
 class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
     """Ammonite Pipeline Versioning Panel"""
@@ -113,15 +177,17 @@ class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
         row = col.row(align=True)
         row.label(text="Version Step")
         row.prop(scene, "ammopipe_version_step", text="")
-        row = col.row(align=True)
-        row.label(text="Next version is:")
-        row = col.row(align=True)
-        row.alert = True
-        name = os.path.splitext(os.path.basename(directory_files()[2]))[0]
-        new_name = (
-            next_relative_name(directory_files()[1], name, scene.ammopipe_version_step) + ".blend"
-        )
-        row.label(text=new_name)
+        if bpy.data.is_saved:
+            row = col.row(align=True)
+            row.label(text="Next version is:")
+            row = col.row(align=True)
+            row.alert = True
+            name = os.path.splitext(os.path.basename(directory_files()[2]))[0]
+            new_name = (
+                next_relative_name(directory_files()[1], name, scene.ammopipe_version_step)
+                + ".blend"
+            )
+            row.label(text=new_name)
 
 
 class PIPE_PT_AmmoPipe_Scenes_Management_Panel(Panel):
@@ -282,6 +348,7 @@ ammopipe_collection_share_items = [
 classes = (
     PIPE_PT_AmmoPipe_Scenes_Workflow_Panel,
     PIPE_PT_AmmoPipe_Naming_Panel,
+    PIPE_PT_AmmoPipe_Naming_Issues_Panel,
     PIPE_PT_AmmoPipe_Versioning_Panel,
     PIPE_PT_AmmoPipe_Scenes_Management_Panel,
     PIPE_PT_AmmoPipe_Scenes_Naming_Panel,
@@ -337,6 +404,11 @@ def register():
         description="Put REF- collection in the main LINK- Collection",
         default=False,
     )
+    bpy.types.Scene.ammopipe_naming_pop_up_info = BoolProperty(
+        name="! Data-Blocks Naming Infp !",
+        description="Naming of the data-blocks can be standardized any time, \nand it is recommended to do that in the beginning of the working with Asset. \nSee details in the sub-panel below",
+        default=False,
+    )
     bpy.types.Scene.ammopipe_version_step = IntProperty(
         name="Version Step",
         description="The name of the next version will be increased on this amount",
@@ -383,6 +455,7 @@ def unregister():
     del bpy.types.Scene.ammopipe_naming_use_cameras
     del bpy.types.Scene.ammopipe_naming_use_lights
     del bpy.types.Scene.ammopipe_naming_use_refs
+    del bpy.types.Scene.ammopipe_naming_pop_up_info
     del bpy.types.Scene.ammopipe_version_step
     del bpy.types.Collection.ammopipe_collection_share_enum
     del bpy.types.Collection.ammopipe_source_collection
