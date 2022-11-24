@@ -21,7 +21,8 @@ def remove_collections(coll, prefixes, asset_name):
 
     for collection in coll.children_recursive:
         if not any(collection.name.startswith(prefix + asset_name) for prefix in prefixes):
-            if len(collection.objects) == 0:
+            if len(collection.objects) == 0 and not "skip_delete" in collection.keys():
+                print("DELETED collection", collection.name)
                 bpy.data.collections.remove(collection)
 
 
@@ -158,7 +159,7 @@ def organize_blocks(scene, asset_name):
     if scene.ammopipe_naming_keep_geo_collections:
         exclude_list = []
         for coll in collections_all:
-            if coll is scene.collection:
+            if coll is scene.collection or "WGTS" in coll.name:
                 continue
             for ob in coll.objects:
                 if ob.type == "MESH":
@@ -171,7 +172,6 @@ def organize_blocks(scene, asset_name):
                             coll.name = scene_dict["objects_types"]["OTHERS"].name + "_" + coll.name
                         exclude_list.append(coll.name)
                     break
-        print(exclude_list)
         for coll in collections_all:
             if (
                 coll is not scene_dict["objects_types"]["OTHERS"]
@@ -260,17 +260,36 @@ def organize_blocks(scene, asset_name):
     collections_all_extended = collections_all
     collections_all_extended.extend([scene.collection])
     wgts = [coll for coll in collections_all_extended if "WGTS" in coll.name]
+    coll_widgets = False
+    if any(wgts):
+        coll_widgets_all = [
+            coll
+            for coll in collections_all_extended
+            if coll.name.startswith(asset_name + "_widgets")
+        ]
+        if len(coll_widgets_all) > 0:
+            coll_widgets = coll_widgets_all[0]
+        else:
+            coll_widgets = bpy.data.collections.new(asset_name + "_widgets")
+        for coll in collections_all:
+            if coll_widgets.name in coll.children:
+                coll.children.unlink(coll_widgets)
+        if not coll_widgets.name in scene.collection.children:
+            scene.collection.children.link(coll_widgets)
+        coll_widgets["skip_delete"] = 1
+
     for coll in collections_all_extended:
         for wgt in wgts:
             if wgt.name in coll.children:
                 coll.children.unlink(wgt)
     for wgt in wgts:
-        if rig_add:
-            if not wgt.name in rig_add.children:
-                rig_add.children.link(wgt)
+        if coll_widgets:
+            if not wgt.name in coll_widgets.children:
+                coll_widgets.children.link(wgt)
         else:
-            if not wgt.name in geo_add.children:
-                geo_add.children.link(wgt)
+            if not wgt.name in scene.collection.children:
+                scene.collection.children.link(wgt)
+
     # Exception: META Armatures
     meta_obs = [
         [ob for ob in collection.objects if (ob.type == "ARMATURE" and "META" in ob.name)]
@@ -287,6 +306,7 @@ def organize_blocks(scene, asset_name):
         else:
             if not ob.name in scene.collection.objects:
                 scene.collection.objects.link(ob)
+        ob.data.name = "DATA_" + ob.name
 
     # Remove Collections
     remove_collections(scene.collection, coll_prefixes, asset_name)
@@ -321,8 +341,19 @@ def rename_objects(scene, asset_name):
             ob.name = ob.name.replace(prefix, (prefix + "_"))
         else:
             pass
+        if ob.name.endswith("_"):
+            ob.name = ob.name[:-1]
         if ob.type != "EMPTY":
             ob.data.name = "DATA_" + ob.name
+
+    other_blocks = [bpy.data.materials, bpy.data.images]
+    for collection in other_blocks:
+        for block in collection:
+            if not block.name.startswith(asset_name):
+                if not block.name.startswith("_"):
+                    block.name = asset_name + "_" + block.name
+                else:
+                    block.name = asset_name + block.name
 
 
 def seperate_string_number(string) -> Tuple:
@@ -453,64 +484,67 @@ def blocks_recursive_property(scene, coll):
             blocks_recursive_property(scene, source_coll)
 
 
-"""
-def colls_and_obs_recursive_dupli(scene, collection, collection_dst, add_name, check_copy):
-    for coll in collection.children:
-        # Pass the "Link" collections if we expect them here
-        if check_copy and coll.ammopipe_collection_share_enum == "Link":
+def naming_ussues(scene, block, block_collection) -> str:
+    excluded_prefixes = ["GEO-", "RIG-", "LIGHT-", "CAM-", "REF-"]
+    side_parts = {
+        ".L": ("L", "Lt", "Left"),
+        ".R": ("R", "Rt", "Right"),
+    }
+    asset_name = scene.ammopipe_naming_asset_name
+    block_name = block.name
+    block_start, block_end = "", ""
+    for pref in excluded_prefixes:
+        if block_name.startswith(pref + asset_name):
+            block_start = pref + asset_name
+            block_name = block_name.replace(block_start, "")
+    if block_name.startswith("_"):
+        block_name = block_name[1:]
+    block_name_seq = seperate_string_number(block_name)[0]
+    block_name_new = [block_start]
+    for item in block_name_seq:
+        if not item.isalpha() and not item.isdigit():
             continue
-        # Duplicate Collection if it's Local
-        # Create new if it's overridden
-        # (as we cannot (un)link to an overridden one)
-        if not coll.override_library:
-            coll_copy = coll.copy()
-            coll_copy.name = coll.name + add_name
         else:
-            coll_copy = bpy.data.collections.new(coll.name + add_name)
-            coll_copy.color_tag = coll.color_tag
-            original_parents = list(
-                [
-                    scene_collection
-                    for scene_collection in scene.collection.children_recursive
-                    if coll.name in scene_collection.children
-                ]
-            )
-            copy_parents = list([coll.name + add_name for coll in original_parents])
-            for scene_collection in scene.collection.children_recursive:
-                if scene_collection.name in copy_parents:
-                    scene_collection.children.link(coll_copy)
-        # Unlink the original children if we are not inside the LO collection
-        coll_copy_children = list(
-            [child for child in coll_copy.children if not coll_copy.override_library]
-        )
-        for child in coll_copy_children:
-            if child.name in coll.children:
-                coll_copy.children.unlink(child)
-        # Duplicate objects
-        for ob in list(coll.objects):
-            ob_copy = ob.copy()
-            ob_copy.name = ob.name + add_name
-            # Duplicate object data if exists
-            # Object data should be duplicated for the non-LO collections only
-            if not coll.override_library:
-                if ob.data:
-                    data = ob.data.copy()
-                    data.name = ob_copy.name
-                    ob_copy.data = data
-            # Link copied object to a copied collection
-            if not ob_copy.name in coll_copy.objects:
-                coll_copy.objects.link(ob_copy)
-            # Unlink the original objects from a copied collection
-            if ob.name in coll_copy.objects:
-                coll_copy.objects.unlink(ob)
-        # Unlink the copied collection from the original parent
-        if coll_copy.name in collection.children and collection is not scene.collection:
-            collection.children.unlink(coll_copy)
-        # Link the copied collection to a destination collection
-        if coll_copy.name not in collection_dst.children:
-            collection_dst.children.link(coll_copy)
-        # Recursion with new parameters
-        # if not coll.override_library:
-        if len(coll.children) > 0:
-            colls_and_obs_recursive_dupli(scene, coll, coll_copy, add_name, False)
-"""
+            for key in side_parts.keys():
+                combined_list = (
+                    [part for part in side_parts[key]]
+                    + [part.lower() for part in side_parts[key]]
+                    + [part.upper() for part in side_parts[key]]
+                )
+                if item in combined_list:
+                    block_end = key
+                    item = ""
+                    continue
+            if (
+                not item in excluded_prefixes
+                and not item == asset_name
+                and not item == "DATA"
+                and not item == "WGTS"
+                and not "META" in item
+            ):
+                item = item.lower()
+        block_name_new.append(item)
+    block_name_clean = []
+    for part in block_name_new:
+        if part != "":
+            block_name_clean.append(part)
+
+    name = "_".join(block_name_clean)
+    if block_end != "":
+        name += block_end
+
+    if block_collection in [
+        bpy.data.meshes,
+        bpy.data.armatures,
+        bpy.data.lattices,
+        bpy.data.cameras,
+        bpy.data.lights,
+    ]:
+        users = [o for o in bpy.data.objects if o.user_of_id(block.id_data)]
+        user = None
+        if len(users) > 0:
+            user = users[0]
+        if user:
+            name = ("DATA_" + user.name).replace("__", "_")
+
+    return name

@@ -3,7 +3,7 @@ import os
 
 from bpy.props import (
     StringProperty,
-    BoolProperty,
+    CollectionProperty,
     IntProperty,
     FloatProperty,
     FloatVectorProperty,
@@ -294,6 +294,52 @@ class PIPE_OT_Save_Scenes_Separately(Operator):
         return {"FINISHED"}
 
 
+class PIPE_OT_Fix_Name(Operator):
+    """Fix Name of the Block"""
+
+    bl_idname = "pipeline.fix_name"
+    bl_label = "Fix Name of the Block"
+    bl_options = {"REGISTER", "UNDO"}
+
+    block: StringProperty()
+    collection: StringProperty()
+
+    def execute(self, context):
+
+        block = eval(self.block)
+        collection = eval(self.collection)
+        block.name = naming_ussues(context.scene, block, collection)
+
+        return {"FINISHED"}
+
+
+class PIPE_OT_Fix_Names_All(Operator):
+    """Fix Names of All the Blocks"""
+
+    bl_idname = "pipeline.fix_names_all"
+    bl_label = "Fix Names of All the Blocks"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+
+        collections = [
+            bpy.data.objects,
+            bpy.data.meshes,
+            bpy.data.images,
+            bpy.data.materials,
+            bpy.data.armatures,
+            bpy.data.lattices,
+            bpy.data.cameras,
+            bpy.data.lights,
+        ]
+
+        for block_collection in collections:
+            for block in block_collection:
+                block.name = naming_ussues(context.scene, block, block_collection)
+
+        return {"FINISHED"}
+
+
 classes = (
     PIPE_OT_Organize_Scene,
     PIPE_OT_Incremental_Save,
@@ -304,6 +350,8 @@ classes = (
     PIPE_OT_Save_Scenes_Separately,
     PIPE_OT_Set_Workflow_Asset,
     PIPE_OT_Set_Workflow_Layout,
+    PIPE_OT_Fix_Name,
+    PIPE_OT_Fix_Names_All,
 )
 
 
