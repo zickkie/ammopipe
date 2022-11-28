@@ -30,8 +30,8 @@ class PIPE_OT_Organize_Scene(Operator):
 
     def execute(self, context):
         # Capture visibility
-        # I moved this out of function as inside it
-        # the viewport hide gone reset for some reason
+        # I moved this out of function because when inside
+        # the "viewport hide" is reset for some reason
         hide_dict = {}
         for ob in context.scene.objects:
             hide_dict[ob] = ob.hide_get()
@@ -340,6 +340,45 @@ class PIPE_OT_Fix_Names_All(Operator):
         return {"FINISHED"}
 
 
+class PIPE_OT_Override_And_Snap_Rigged(Operator):
+    """Override Rigged asset and move Rig to the current Empty's position"""
+
+    bl_idname = "pipeline.override_and_snap_rigged"
+    bl_label = "Override Rigged asset and move Rig to the current Empty's position"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            context.active_object
+            and context.active_object.type == "EMPTY"
+            and context.active_object.instance_type == "COLLECTION"
+        )
+
+    def execute(self, context):
+
+        empty = context.active_object
+        transforms = (empty.location.copy(), empty.rotation_euler.copy(), empty.scale.copy())
+        print(transforms)
+        collection = empty.instance_collection
+        reference = None
+        for coll in collection.children_recursive:
+            for ob in coll.objects:
+                if ob.type == "ARMATURE" and ob.name == "RIG-" + collection.name:
+                    reference = ob
+        if not reference:
+            self.report({"ERROR"}, "No rig with proper naming found!")
+        else:
+            bpy.ops.object.make_override_library()
+            for ob in bpy.data.objects:
+                if ob.override_library and ob.override_library.reference == reference:
+                    ob.location = transforms[0]
+                    ob.rotation_euler = transforms[1]
+                    ob.scale = transforms[2]
+
+        return {"FINISHED"}
+
+
 classes = (
     PIPE_OT_Organize_Scene,
     PIPE_OT_Incremental_Save,
@@ -352,6 +391,7 @@ classes = (
     PIPE_OT_Set_Workflow_Layout,
     PIPE_OT_Fix_Name,
     PIPE_OT_Fix_Names_All,
+    PIPE_OT_Override_And_Snap_Rigged,
 )
 
 

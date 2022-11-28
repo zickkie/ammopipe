@@ -65,12 +65,18 @@ class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
         row = col.row(align=True)
         row.prop(scene, "ammopipe_naming_asset_name", text="")
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.prop(
             scene,
             "ammopipe_naming_keep_geo_collections",
             text="Keep Collections",
             icon="OUTLINER_COLLECTION",
+        )
+        row.prop(
+            scene,
+            "ammopipe_remove_unused_collections",
+            text="Remove Unused",
+            icon="TRASH",
         )
         col = layout.column(align=True)
         col_split = col.split()
@@ -109,6 +115,7 @@ class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
     bl_label = "Naming Issues"
     bl_order = 0
     bl_parent_id = "PIPE_PT_AmmoPipe_Naming_Panel"
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
         layout = self.layout
@@ -125,7 +132,6 @@ class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
             bpy.data.cameras: ("CAMERA_DATA", "bpy.data.cameras"),
             bpy.data.lights: ("LIGHT_DATA", "bpy.data.lights"),
         }
-
         if not any(
             [
                 block
@@ -155,6 +161,29 @@ class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
                     )
                     rename.block = repr(block)
                     rename.collection = collections[block_collection][1]
+
+
+class PIPE_PT_AmmoPipe_Overrides_Panel(Panel):
+    """Ammonite Pipeline Overrides Panel"""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "AmmoPipe"
+    bl_label = "Overrides"
+
+    @classmethod
+    def poll(cls, context):
+        return not any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        row = layout.row()
+        row.operator(
+            PIPE_OT_Override_And_Snap_Rigged.bl_idname,
+            text="Override & Snap",
+            icon="LIBRARY_DATA_OVERRIDE",
+        )
 
 
 class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
@@ -349,6 +378,7 @@ classes = (
     PIPE_PT_AmmoPipe_Scenes_Workflow_Panel,
     PIPE_PT_AmmoPipe_Naming_Panel,
     PIPE_PT_AmmoPipe_Naming_Issues_Panel,
+    PIPE_PT_AmmoPipe_Overrides_Panel,
     PIPE_PT_AmmoPipe_Versioning_Panel,
     PIPE_PT_AmmoPipe_Scenes_Management_Panel,
     PIPE_PT_AmmoPipe_Scenes_Naming_Panel,
@@ -404,6 +434,11 @@ def register():
         description="Put REF- collection in the main LINK- Collection",
         default=False,
     )
+    bpy.types.Scene.ammopipe_remove_unused_collections = BoolProperty(
+        name="Remove Unused Collections",
+        description="Remove Collections that don't have children and/or haven't passed the naming rule",
+        default=True,
+    )
     bpy.types.Scene.ammopipe_naming_pop_up_info = BoolProperty(
         name="! Data-Blocks Naming Infp !",
         description="Naming of the data-blocks can be standardized any time, \nand it is recommended to do that in the beginning of the working with Asset. \nSee details in the sub-panel below",
@@ -455,6 +490,7 @@ def unregister():
     del bpy.types.Scene.ammopipe_naming_use_cameras
     del bpy.types.Scene.ammopipe_naming_use_lights
     del bpy.types.Scene.ammopipe_naming_use_refs
+    del bpy.types.Scene.ammopipe_remove_unused_collections
     del bpy.types.Scene.ammopipe_naming_pop_up_info
     del bpy.types.Scene.ammopipe_version_step
     del bpy.types.Collection.ammopipe_collection_share_enum

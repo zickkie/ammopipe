@@ -15,13 +15,17 @@ def recurLayerCollection(layerColl, collName):
             return found
 
 
-def remove_collections(coll, prefixes, asset_name):
+def remove_collections(scene, coll, prefixes, asset_name):
     """Remove all Scene Collections that don't pass the naming convention
     and don't have any Objects"""
 
     for collection in coll.children_recursive:
         if not any(collection.name.startswith(prefix + asset_name) for prefix in prefixes):
-            if len(collection.objects) == 0 and not "skip_delete" in collection.keys():
+            if (
+                scene.ammopipe_remove_unused_collections
+                and len(collection.objects) == 0
+                and not "skip_delete" in collection.keys()
+            ):
                 print("DELETED collection", collection.name)
                 bpy.data.collections.remove(collection)
 
@@ -127,6 +131,8 @@ def create_collections(scene, asset_name) -> Dict:
     rig_main = None
     if scene.ammopipe_naming_use_rigs:
         rig_add = [c for c in objects_types["ARMATURE"].children if "_helpers" in c.name][0]
+        rig_add.hide_viewport = False
+        rig_add.hide_render = False
         rig_main = [c for c in objects_types["ARMATURE"].children if "_main" in c.name][0]
 
     scene_dict = {
@@ -309,7 +315,7 @@ def organize_blocks(scene, asset_name):
         ob.data.name = "DATA_" + ob.name
 
     # Remove Collections
-    remove_collections(scene.collection, coll_prefixes, asset_name)
+    remove_collections(scene, scene.collection, coll_prefixes, asset_name)
 
 
 def rename_objects(scene, asset_name):
@@ -492,11 +498,16 @@ def naming_ussues(scene, block, block_collection) -> str:
     }
     asset_name = scene.ammopipe_naming_asset_name
     block_name = block.name
+    if block_name.startswith("META"):
+        return block_name
     block_start, block_end = "", ""
     for pref in excluded_prefixes:
         if block_name.startswith(pref + asset_name):
-            block_start = pref + asset_name
-            block_name = block_name.replace(block_start, "")
+            if block_name == pref + asset_name:
+                return block_name
+            else:
+                block_start = pref + asset_name
+                block_name = block_name.replace(block_start, "")
     if block_name.startswith("_"):
         block_name = block_name[1:]
     block_name_seq = seperate_string_number(block_name)[0]
@@ -519,7 +530,7 @@ def naming_ussues(scene, block, block_collection) -> str:
                 not item in excluded_prefixes
                 and not item == asset_name
                 and not item == "DATA"
-                and not item == "WGTS"
+                and not item.startswith("WGT")
                 and not "META" in item
             ):
                 item = item.lower()
@@ -527,7 +538,11 @@ def naming_ussues(scene, block, block_collection) -> str:
     block_name_clean = []
     for part in block_name_new:
         if part != "":
-            block_name_clean.append(part)
+            if len(block_name_clean) > 0:
+                if part != block_name_clean[-1]:
+                    block_name_clean.append(part)
+            else:
+                block_name_clean.append(part)
 
     name = "_".join(block_name_clean)
     if block_end != "":
