@@ -452,6 +452,16 @@ def directory_files() -> Tuple:
             directory_files.append(os.path.splitext(item)[0])
     return (directory_name, directory_files, current_file)
 
+def directory_files_given(path) -> Tuple:
+    current_file = bpy.data.filepath
+    directory_name = os.path.dirname(path)
+    # Collect all the files in the directory
+    directory_files = []
+    for item in sorted(os.listdir(directory_name)):
+        if item.endswith(".blend"):
+            directory_files.append(os.path.splitext(item)[0])
+    return (directory_name, directory_files, current_file)
+
 
 def unify_scenes_names(context):
     scenes = [scene.name for scene in bpy.data.scenes if not scene.ammopipe_source_scene]
@@ -563,3 +573,4 @@ def naming_ussues(scene, block, block_collection) -> str:
             name = ("DATA_" + user.name).replace("__", "_")
 
     return name
+

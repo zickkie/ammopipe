@@ -6,8 +6,7 @@ from bpy.props import (
     StringProperty,
     BoolProperty,
     IntProperty,
-    FloatProperty,
-    FloatVectorProperty,
+    CollectionProperty,
     EnumProperty,
     PointerProperty,
 )
@@ -26,21 +25,35 @@ class PIPE_PT_AmmoPipe_Scenes_Workflow_Panel(Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        if any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset"):
+        if any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset"
+        ):
             asset_icon = "CHECKBOX_HLT"
-            layout_icon = "CHECKBOX_DEHLT"
         else:
             asset_icon = "CHECKBOX_DEHLT"
+        if any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Layout"
+        ):
             layout_icon = "CHECKBOX_HLT"
+        else:
+            layout_icon = "CHECKBOX_DEHLT"
+        if any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Project"
+        ):
+            project_icon = "CHECKBOX_HLT"
+        else:
+            project_icon = "CHECKBOX_DEHLT"
         col = layout.column(align=True)
-        split = col.split()
-        col1 = split.column(align=True)
-        row = col1.row(align=True)
-        row.operator(PIPE_OT_Set_Workflow_Asset.bl_idname, text="Asset", icon=asset_icon)
-        col2 = split.column(align=True)
-        row = col2.row(align=True)
-        row.operator(PIPE_OT_Set_Workflow_Layout.bl_idname, text="Layout", icon=layout_icon)
+        row = col.row(align=True)
+        row.operator(
+            PIPE_OT_Set_Workflow_Asset.bl_idname, text="Asset", icon=asset_icon
+        )
+        row.operator(
+            PIPE_OT_Set_Workflow_Layout.bl_idname, text="Layout", icon=layout_icon
+        )
+        row.operator(
+            PIPE_OT_Set_Workflow_Project.bl_idname, text="Project", icon=project_icon
+        )
 
 
 class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
@@ -53,7 +66,9 @@ class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
 
     @classmethod
     def poll(cls, context):
-        return any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
+        return any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset"
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -88,7 +103,9 @@ class PIPE_PT_AmmoPipe_Naming_Panel(Panel):
         row.prop(scene, "ammopipe_naming_link_lights", text="", icon="EVENT_L")
         col2 = col_split.column(align=True)
         row = col2.row(align=True)
-        row.prop(scene, "ammopipe_naming_use_cameras", text="Camera", icon="CAMERA_DATA")
+        row.prop(
+            scene, "ammopipe_naming_use_cameras", text="Camera", icon="CAMERA_DATA"
+        )
         row.prop(scene, "ammopipe_naming_link_cameras", text="", icon="EVENT_L")
         row = col2.row(align=True)
         row.prop(scene, "ammopipe_naming_use_refs", text="Refs", icon="IMAGE_DATA")
@@ -144,7 +161,9 @@ class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
             row.label(text="All names are standardized!")
         else:
             row = col.row()
-            row.operator(PIPE_OT_Fix_Names_All.bl_idname, text="Rename ALL", icon="SORTALPHA")
+            row.operator(
+                PIPE_OT_Fix_Names_All.bl_idname, text="Rename ALL", icon="SORTALPHA"
+            )
             row = col.row()
             row.separator(factor=2.0)
 
@@ -157,7 +176,10 @@ class PIPE_PT_AmmoPipe_Naming_Issues_Panel(Panel):
                     row.label(icon="RIGHTARROW_THIN")
                     row.label(text=naming_ussues(scene, block, block_collection))
                     rename = row.operator(
-                        PIPE_OT_Fix_Name.bl_idname, text="", icon="SORTALPHA", emboss=True
+                        PIPE_OT_Fix_Name.bl_idname,
+                        text="",
+                        icon="SORTALPHA",
+                        emboss=True,
                     )
                     rename.block = repr(block)
                     rename.collection = collections[block_collection][1]
@@ -173,7 +195,11 @@ class PIPE_PT_AmmoPipe_Overrides_Panel(Panel):
 
     @classmethod
     def poll(cls, context):
-        return not any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
+        return not any(
+            scene
+            for scene in bpy.data.scenes
+            if scene.ammopipe_workflow in ("Asset", "Project")
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -194,13 +220,21 @@ class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
     bl_category = "AmmoPipe"
     bl_label = "Versioning"
 
+    @classmethod
+    def poll(cls, context):
+        return not any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Project"
+        )
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        vers = row.operator(PIPE_OT_Incremental_Save.bl_idname, text="Save Current Version")
+        vers = row.operator(
+            PIPE_OT_Incremental_Save.bl_idname, text="Save Current Version"
+        )
         vers.count = scene.ammopipe_version_step
         col = layout.column(align=True)
         row = col.row(align=True)
@@ -213,7 +247,9 @@ class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
             row.alert = True
             name = os.path.splitext(os.path.basename(directory_files()[2]))[0]
             new_name = (
-                next_relative_name(directory_files()[1], name, scene.ammopipe_version_step)
+                next_relative_name(
+                    directory_files()[1], name, scene.ammopipe_version_step
+                )
                 + ".blend"
             )
             row.label(text=new_name)
@@ -230,7 +266,13 @@ class PIPE_PT_AmmoPipe_Scenes_Management_Panel(Panel):
 
     @classmethod
     def poll(cls, context):
-        return not any(scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Asset")
+        for scene in bpy.data.scenes:
+            if (
+                scene.ammopipe_workflow == "Asset"
+                or scene.ammopipe_workflow == "Project"
+            ):
+                return False
+        return True
 
     def draw(self, context):
         layout = self.layout
@@ -253,7 +295,9 @@ class PIPE_PT_AmmoPipe_Scenes_Management_Panel(Panel):
 
         row = col.row(align=True)
         row.operator(WM_OT_Add_New_Scene.bl_idname, text="New from Source", icon="ADD")
-        row.operator(WM_OT_Delete_Current_Scene.bl_idname, text="Delete Scene", icon="TRASH")
+        row.operator(
+            WM_OT_Delete_Current_Scene.bl_idname, text="Delete Scene", icon="TRASH"
+        )
 
 
 class PIPE_PT_AmmoPipe_Scenes_Naming_Panel(Panel):
@@ -276,7 +320,9 @@ class PIPE_PT_AmmoPipe_Scenes_Naming_Panel(Panel):
             row.label(text=scene.name)
             row.prop(scene, "ammopipe_scene_name_suffix", text="Suffix")
         row = col.row(align=True)
-        row.operator(PIPE_OT_Unify_Scenes_Names.bl_idname, text="Unify Names", icon="SORTALPHA")
+        row.operator(
+            PIPE_OT_Unify_Scenes_Names.bl_idname, text="Unify Names", icon="SORTALPHA"
+        )
 
 
 class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
@@ -303,7 +349,10 @@ class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
                 source_scene = scene
         if source_scene:
             for coll in source_scene.collection.children_recursive:
-                if not coll.override_library and coll.name in source_scene.collection.children:
+                if (
+                    not coll.override_library
+                    and coll.name in source_scene.collection.children
+                ):
                     split = col.split(factor=0.6)
                     col1 = split.column()
                     row = col1.row()
@@ -327,22 +376,58 @@ class PIPE_PT_AmmoPipe_Scenes_Save_Panel(Panel):
     bl_order = 2
     bl_parent_id = "PIPE_PT_AmmoPipe_Scenes_Management_Panel"
 
+    @classmethod
+    def poll(cls, context):
+        for scene in bpy.data.scenes:
+            if (
+                scene.ammopipe_workflow == "Asset"
+                or scene.ammopipe_workflow == "Project"
+            ):
+                return False
+        return True
+
     def draw(self, context):
         layout = self.layout
         col = layout.column(align=True)
+
+        split_path = col.split(factor=0.33)
+        col_path1 = split_path.column()
+        row_path = col_path1.row()
+        row_path.label(text="Scenes Save Path:")
+        col_path2 = split_path.column()
+        row_path = col_path2.row(align=True)
+        row_path.operator(
+            PIPE_OT_Set_Filepath_From_Current.bl_idname, text="", icon="IMPORT"
+        )
+        row_path.prop(
+            bpy.data.window_managers["WinMan"], "ammopipe_scene_save_path", text=""
+        )
+
+        row = col.row()
+        row.separator(factor=1.0)
+
         split = col.split(factor=0.6)
         col1 = split.column(align=True)
         col2 = split.column(align=True)
-
-        files = directory_files()[1]
-        path_full = context.blend_data.filepath
-        name = bpy.path.basename(path_full)
+        if (
+            bpy.data.is_saved
+            and bpy.data.window_managers["WinMan"].ammopipe_scene_save_path.strip()
+        ):
+            files = directory_files_given(
+                bpy.data.window_managers["WinMan"].ammopipe_scene_save_path
+            )[1]
+            path_full = context.blend_data.filepath
+            name = bpy.path.basename(path_full)
+        else:
+            row = col.row()
+            row.label(text="Set the Scenes Save Path!", icon="ERROR")
+            return
 
         for scene in bpy.data.scenes:
             if not scene.ammopipe_source_scene:
-                scene_file_name = (name.split(".blend")[0] + "_" + scene.name + ".blend").replace(
-                    "__", "_"
-                )
+                scene_file_name = (
+                    name.split(".blend")[0] + "_" + scene.name + ".blend"
+                ).replace("__", "_")
                 row_name = col1.row()
                 row_name.label(text=scene.name, icon="SCENE_DATA")
                 row_name = col1.row()
@@ -357,13 +442,164 @@ class PIPE_PT_AmmoPipe_Scenes_Save_Panel(Panel):
                 save = row_save.operator(
                     PIPE_OT_Save_Scenes_Separately.bl_idname, text=text, icon=icon
                 )
+                save.filepath_new = bpy.data.window_managers[
+                    "WinMan"
+                ].ammopipe_scene_save_path
                 save.scene_name = scene.name
                 row_save = col2.row()
                 row_save.separator(factor=0.5)
 
 
+class PIPE_PT_AmmoPipe_Project_Panel(Panel):
+    """Ammonite Pipeline Project Structure Panel"""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "AmmoPipe"
+    bl_label = "Project"
+
+    @classmethod
+    def poll(cls, context):
+        return any(
+            scene for scene in bpy.data.scenes if scene.ammopipe_workflow == "Project"
+        )
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        col_main = layout.column()
+        row = col_main.row()
+        row.operator(PIPE_OT_Project_Add.bl_idname, text="Add Project Data", icon="ADD")
+
+        for i in range(len(context.scene.ammopipe_project_properties)):
+            project = context.scene.ammopipe_project_properties[i]
+            box = col_main.box()
+            split = box.split(factor=0.4)
+            col1 = split.column(align=True)
+            row = col1.row()
+            row.label(text="Name")
+            row = col1.row()
+            row.label(text="Parent Folder")
+            col2 = split.column(align=True)
+            row = col2.row()
+            row.prop(project, "project_name", text="")
+            row = col2.row()
+            row.prop(project, "project_path", text="")
+
+            col_types = box.column()
+            row = col_types.row()
+            row.prop(
+                project,
+                "use_animatic",
+                text="Animatic",
+                icon="GREASEPENCIL",
+                toggle=True,
+            )
+            row = col_types.row()
+            row.prop(
+                project, "use_assets", text="Assets", icon="ASSET_MANAGER", toggle=True
+            )
+            row = col_types.row()
+            row.prop(
+                project,
+                "use_references",
+                text="References",
+                icon="IMAGE_REFERENCE",
+                toggle=True,
+            )
+            row = col_types.row()
+            row.prop(
+                project, "use_scenes", text="Scenes", icon="SCENE_DATA", toggle=True
+            )
+            row = col_types.row()
+            row.prop(
+                project,
+                "use_exports",
+                text="Exports",
+                icon="RENDER_RESULT",
+                toggle=True,
+            )
+            row = col_types.row()
+            row.prop(
+                project,
+                "use_utilities",
+                text="Utilities",
+                icon="TOOL_SETTINGS",
+                toggle=True,
+            )
+
+            if project.use_animatic or project.use_scenes:
+                box_scenes = col_types.box()
+                col_scenes = box_scenes.column(align=True)
+                row_scene = col_scenes.row()
+                if project.project_scenes_list_show:
+                    icon = "TRIA_DOWN"
+                else:
+                    icon = "TRIA_RIGHT"
+                row_scene.prop(
+                    project,
+                    "project_scenes_list_show",
+                    text="Scnes List",
+                    icon=icon,
+                    toggle=True,
+                )
+                if project.project_scenes_list_show:
+                    row_scene = col_scenes.row()
+                    add_scene = row_scene.operator(
+                        PIPE_OT_Project_Scene_Add.bl_idname,
+                        text="Add Scene",
+                        icon="ADD",
+                    )
+                    add_scene.i = i
+                    row_scene = col_scenes.row()
+                    row_scene.separator(factor=0.5)
+                    for j in range(
+                        len(context.scene.ammopipe_project_properties[i].project_scenes)
+                    ):
+                        project_scene = context.scene.ammopipe_project_properties[
+                            i
+                        ].project_scenes[j]
+                        split_scenes = col_scenes.split(factor=0.15)
+                        col1j = split_scenes.column()
+                        row_scene1 = col1j.row()
+                        row_scene1.label(text=str(j))
+                        col2j = split_scenes.column()
+                        row_scene2 = col2j.row()
+                        row_scene2.prop(
+                            project_scene, "name", text="", icon="SORTALPHA"
+                        )
+                        rem_scene = row_scene2.operator(
+                            PIPE_OT_Project_Scene_Remove.bl_idname,
+                            text="",
+                            icon="TRASH",
+                        )
+                        rem_scene.i, rem_scene.j = i, j
+
+            row = col_types.row()
+            remove = row.operator(
+                PIPE_OT_Project_Remove.bl_idname,
+                text="Remove Project Data",
+                icon="REMOVE",
+            )
+            remove.i = i
+
+        row = col_main.row()
+        row.operator(
+            PIPE_OT_Create_Folders.bl_idname,
+            text="Create Project(s) Folders",
+            icon="FILEBROWSER",
+        )
+
+
 ammopipe_collection_share_items = [
-    ("Link", "Share", "Share this Collection with the newly created Scene", "LINKED", 0),
+    (
+        "Link",
+        "Share",
+        "Share this Collection with the newly created Scene",
+        "LINKED",
+        0,
+    ),
     (
         "Copy",
         "Duplicate",
@@ -384,6 +620,7 @@ classes = (
     PIPE_PT_AmmoPipe_Scenes_Naming_Panel,
     PIPE_PT_AmmoPipe_Scenes_Collections_Panel,
     PIPE_PT_AmmoPipe_Scenes_Save_Panel,
+    PIPE_PT_AmmoPipe_Project_Panel,
 )
 
 
@@ -470,11 +707,24 @@ def register():
         description="Use This Scene as Source",
         default=False,
     )
+    bpy.types.WindowManager.ammopipe_scene_save_path = bpy.props.StringProperty(
+        name="Scene Save Path",
+        description="",
+        subtype="DIR_PATH",
+        default="",
+    )
     bpy.types.Scene.ammopipe_workflow = EnumProperty(
         name="Workflow",
-        items=[("Asset", "Asset", ""), ("Layout", "Layout", "")],
+        items=[
+            ("Asset", "Asset", ""),
+            ("Layout", "Layout", ""),
+            ("Project", "Project", ""),
+        ],
         description="Asset or Layout Workflow",
         default="Asset",
+    )
+    bpy.types.Scene.ammopipe_project_properties = CollectionProperty(
+        type=Project_Properties
     )
 
     for cls in classes:
@@ -499,4 +749,6 @@ def unregister():
     del bpy.types.Action.ammopipe_source_action
     del bpy.types.Scene.ammopipe_scene_name_suffix
     del bpy.types.Scene.ammopipe_source_scene
+    del bpy.types.WindowManager.ammopipe_scene_save_path
     del bpy.types.Scene.ammopipe_workflow
+    del bpy.types.Scene.ammopipe_project_properties

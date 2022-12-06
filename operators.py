@@ -1,21 +1,93 @@
 import bpy
 import os
+from pathlib import Path
 
-from bpy.props import (
-    StringProperty,
-    CollectionProperty,
-    IntProperty,
-    FloatProperty,
-    FloatVectorProperty,
-    EnumProperty,
-    PointerProperty,
-)
+from bpy.props import StringProperty, IntProperty, BoolProperty, CollectionProperty
 from bpy.types import (
     Operator,
     PropertyGroup,
 )
 
 from .functions import *
+
+
+class Project_Scenes(PropertyGroup):
+    name: StringProperty(name="Scene Name", default="")
+
+
+class Project_Properties(PropertyGroup):
+    project_name: StringProperty(name="Project Name", default="")
+    project_path: StringProperty(
+        name="Project's Parent Folder",
+        description="A place to create a Project folders structure. \nIn most cases should be set to 'Ammonite-Documents\Projects'",
+        subtype="DIR_PATH",
+        default="",
+    )
+    use_animatic: BoolProperty(name="Animatic", description="Project has Animatic", default=True)
+    use_assets: BoolProperty(name="Assets", description="Project has Assets", default=True)
+    use_references: BoolProperty(
+        name="References", description="Project has References", default=True
+    )
+    use_scenes: BoolProperty(name="Scenes", description="Project has Scenes", default=True)
+    use_exports: BoolProperty(name="Exports", description="Project has Exports", default=True)
+    use_utilities: BoolProperty(name="Utilities", description="Project has Utilities", default=True)
+    project_scenes: CollectionProperty(type=Project_Scenes)
+    project_scenes_list_show: BoolProperty(name="Show Scenes List", default=True)
+
+
+class PIPE_OT_Project_Add(Operator):
+    """Add Project Properties"""
+
+    bl_idname = "pipeline.project_add"
+    bl_label = "Add Project Properties"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        context.scene.ammopipe_project_properties.add()
+        return {"FINISHED"}
+
+
+class PIPE_OT_Project_Remove(Operator):
+    """Remove Project Properties"""
+
+    bl_idname = "pipeline.project_remove"
+    bl_label = "Remove Project Properties"
+    bl_options = {"REGISTER", "UNDO"}
+
+    i: IntProperty()
+
+    def execute(self, context):
+        context.scene.ammopipe_project_properties.remove(self.i)
+        return {"FINISHED"}
+
+
+class PIPE_OT_Project_Scene_Add(Operator):
+    """Add Project Scene"""
+
+    bl_idname = "pipeline.project_scene_add"
+    bl_label = "Add Project Scene"
+    bl_options = {"REGISTER", "UNDO"}
+
+    i: IntProperty()
+
+    def execute(self, context):
+        context.scene.ammopipe_project_properties[self.i].project_scenes.add()
+        return {"FINISHED"}
+
+
+class PIPE_OT_Project_Scene_Remove(Operator):
+    """Remove Project Scene"""
+
+    bl_idname = "pipeline.project_scene_remove"
+    bl_label = "Remove Project Scene"
+    bl_options = {"REGISTER", "UNDO"}
+
+    i: IntProperty()
+    j: IntProperty()
+
+    def execute(self, context):
+        context.scene.ammopipe_project_properties[self.i].project_scenes.remove(self.j)
+        return {"FINISHED"}
 
 
 class PIPE_OT_Organize_Scene(Operator):
@@ -127,6 +199,21 @@ class PIPE_OT_Set_Workflow_Layout(Operator):
         for scene in bpy.data.scenes:
             scene.ammopipe_workflow = "Layout"
         self.report({"INFO"}, "Current workflow: LAYOUT")
+        return {"FINISHED"}
+
+
+class PIPE_OT_Set_Workflow_Project(Operator):
+    """Use this Workflow type when you set up the Project's folders structure"""
+
+    bl_idname = "pipeline.set_workflow_project"
+    bl_label = "Set Workflow: Project"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+
+        for scene in bpy.data.scenes:
+            scene.ammopipe_workflow = "Project"
+        self.report({"INFO"}, "Current workflow: PROJECT")
         return {"FINISHED"}
 
 
@@ -263,6 +350,25 @@ class WM_OT_Delete_Current_Scene(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
 
+class PIPE_OT_Set_Filepath_From_Current(Operator):
+    """Set Scene Save Path equal to the Path of the Current File"""
+
+    bl_idname = "pipeline.set_filepath_from_current"
+    bl_label = "Set Filepath from Current"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return bpy.data.is_saved
+
+    def execute(self, context):
+        path_full = context.blend_data.filepath
+        name = bpy.path.basename(path_full)
+        path = path_full.split(name)[0]
+        bpy.data.window_managers["WinMan"].ammopipe_scene_save_path = path
+        return {"FINISHED"}
+
+
 class PIPE_OT_Save_Scenes_Separately(Operator):
     """Save each Scene as a Separate Blend File"""
 
@@ -270,19 +376,23 @@ class PIPE_OT_Save_Scenes_Separately(Operator):
     bl_label = "Save Scenes Separately"
     bl_options = {"REGISTER", "UNDO"}
 
+    filepath_new: StringProperty()
     scene_name: StringProperty()
 
-    def execute(self, context):
+    @classmethod
+    def poll(cls, context):
+        return bpy.data.window_managers["WinMan"].ammopipe_scene_save_path.strip()
 
+    def execute(self, context):
+        save_path = bpy.data.window_managers["WinMan"].ammopipe_scene_save_path
         bpy.ops.wm.save_mainfile()
         path_full = context.blend_data.filepath
         name = bpy.path.basename(path_full)
-        path = path_full.split(name)[0]
 
         scene_file_name = (name.split(".blend")[0] + "_" + self.scene_name + ".blend").replace(
             "__", "_"
         )  # reduce underscores just in case
-        filepath_new = path + scene_file_name
+        filepath_new = self.filepath_new + scene_file_name
 
         scenes_all = list(bpy.data.scenes)
         for scene in scenes_all:
@@ -290,6 +400,7 @@ class PIPE_OT_Save_Scenes_Separately(Operator):
                 bpy.data.scenes.remove(scene)
         bpy.ops.wm.save_as_mainfile(filepath=filepath_new, copy=True)
         bpy.ops.wm.open_mainfile(filepath=path_full)
+        bpy.data.window_managers["WinMan"].ammopipe_scene_save_path = save_path
 
         return {"FINISHED"}
 
@@ -379,19 +490,89 @@ class PIPE_OT_Override_And_Snap_Rigged(Operator):
         return {"FINISHED"}
 
 
+class PIPE_OT_Create_Folders(Operator):
+    """Create Project Folders"""
+
+    bl_idname = "pipeline.create_project_folders"
+    bl_label = "Create Project Folders"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        state = False
+        projects = context.scene.ammopipe_project_properties
+        for project in projects:
+            if project.project_name.strip() and project.project_path.strip():
+                ids = [
+                    prop.identifier
+                    for prop in project.bl_rna.properties
+                    if "use" in prop.identifier
+                ]
+                for key in ids:
+                    if getattr(project, key):
+                        state = True
+                        break
+        return len(projects) > 0 and state
+
+    def execute(self, context):
+        paths = list(
+            [project.project_path for project in context.scene.ammopipe_project_properties]
+        )
+        projects_names = list(
+            [project.project_name for project in context.scene.ammopipe_project_properties]
+        )
+        for i in range(len(paths)):
+            # Root Project Folder
+            project = context.scene.ammopipe_project_properties[i]
+            master_path = paths[i]
+            project_name = projects_names[i]
+            master_path = os.path.join(master_path, project_name)
+            Path(master_path).mkdir(parents=True, exist_ok=True)
+            self.report({"INFO"}, f"'{projects_names}' Project folder created at {paths}")
+            # Subfolders
+            subfolders = [
+                (prop.identifier, prop.name)
+                for prop in project.bl_rna.properties
+                if ("use" in prop.identifier and getattr(project, prop.identifier))
+            ]
+            for subfolder in subfolders:
+                Path(os.path.join(master_path, subfolder[1])).mkdir(parents=True, exist_ok=True)
+                # Create Scenes
+                if subfolder[1] == "Animatic" or subfolder[1] == "Scenes":
+                    if len(project.project_scenes) > 0:
+                        for s in range(len(project.project_scenes)):
+                            count = "%02d" % s
+                            scene_name = "scene_" + count
+                            if project.project_scenes[s].name.strip():
+                                scene_name = scene_name + "_" + project.project_scenes[s].name
+                            Path(os.path.join(master_path, subfolder[1], scene_name)).mkdir(
+                                parents=True, exist_ok=True
+                            )
+        return {"FINISHED"}
+
+
 classes = (
+    Project_Scenes,
+    Project_Properties,
+    PIPE_OT_Project_Add,
+    PIPE_OT_Project_Remove,
+    PIPE_OT_Project_Scene_Add,
+    PIPE_OT_Project_Scene_Remove,
     PIPE_OT_Organize_Scene,
     PIPE_OT_Incremental_Save,
     PIPE_OT_Unify_Scenes_Names,
     WM_OT_Add_New_Scene,
     WM_OT_Delete_Current_Scene,
     PIPE_OT_Set_Source_Scene,
+    PIPE_OT_Set_Filepath_From_Current,
     PIPE_OT_Save_Scenes_Separately,
     PIPE_OT_Set_Workflow_Asset,
     PIPE_OT_Set_Workflow_Layout,
+    PIPE_OT_Set_Workflow_Project,
     PIPE_OT_Fix_Name,
     PIPE_OT_Fix_Names_All,
     PIPE_OT_Override_And_Snap_Rigged,
+    PIPE_OT_Create_Folders,
 )
 
 
