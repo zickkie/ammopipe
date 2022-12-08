@@ -23,14 +23,24 @@ class Project_Properties(PropertyGroup):
         subtype="DIR_PATH",
         default="",
     )
-    use_animatic: BoolProperty(name="Animatic", description="Project has Animatic", default=True)
-    use_assets: BoolProperty(name="Assets", description="Project has Assets", default=True)
+    use_animatic: BoolProperty(
+        name="Animatic", description="Project has Animatic", default=True
+    )
+    use_assets: BoolProperty(
+        name="Assets", description="Project has Assets", default=True
+    )
     use_references: BoolProperty(
         name="References", description="Project has References", default=True
     )
-    use_scenes: BoolProperty(name="Scenes", description="Project has Scenes", default=True)
-    use_exports: BoolProperty(name="Exports", description="Project has Exports", default=True)
-    use_utilities: BoolProperty(name="Utilities", description="Project has Utilities", default=True)
+    use_scenes: BoolProperty(
+        name="Scenes", description="Project has Scenes", default=True
+    )
+    use_exports: BoolProperty(
+        name="Exports", description="Project has Exports", default=True
+    )
+    use_utilities: BoolProperty(
+        name="Utilities", description="Project has Utilities", default=True
+    )
     project_scenes: CollectionProperty(type=Project_Scenes)
     project_scenes_list_show: BoolProperty(name="Show Scenes List", default=True)
 
@@ -114,11 +124,15 @@ class PIPE_OT_Organize_Scene(Operator):
         else:
 
             for coll in context.scene.collection.children_recursive:
-                layer_coll = recurLayerCollection(context.view_layer.layer_collection, coll.name)
+                layer_coll = recurLayerCollection(
+                    context.view_layer.layer_collection, coll.name
+                )
                 coll["exclude"] = layer_coll.exclude
             organize_blocks(context.scene, self.asset_name)
             for coll in context.scene.collection.children_recursive:
-                layer_coll = recurLayerCollection(context.view_layer.layer_collection, coll.name)
+                layer_coll = recurLayerCollection(
+                    context.view_layer.layer_collection, coll.name
+                )
                 if "exclude" in coll.keys():
                     layer_coll.exclude = coll["exclude"]
 
@@ -239,7 +253,9 @@ class WM_OT_Add_New_Scene(bpy.types.Operator):
         # Ensure all the blocks have info about themselves
         # They will be copied in a new scene thus we'll have
         # a method to connect a copied block with its original
-        source_scene = [scene for scene in bpy.data.scenes if scene.ammopipe_source_scene][0]
+        source_scene = [
+            scene for scene in bpy.data.scenes if scene.ammopipe_source_scene
+        ][0]
         blocks_recursive_property(source_scene, source_scene.collection)
 
         # Create a copy Scene
@@ -278,7 +294,9 @@ class WM_OT_Add_New_Scene(bpy.types.Operator):
                     if ob_new.animation_data and ob_new.animation_data.action:
                         action = ob_new.animation_data.action
                         action_source = bpy.data.actions[action.ammopipe_source_action]
-                        ob_new.animation_data.action.name = action_source.name + add_name
+                        ob_new.animation_data.action.name = (
+                            action_source.name + add_name
+                        )
                     ob_source = bpy.data.objects[ob_new.ammopipe_source_object]
                     ob_new.name = ob_source.name + add_name
                 coll_new.name = coll_source.name + add_name
@@ -323,14 +341,20 @@ class WM_OT_Delete_Current_Scene(Operator):
             self.recursive_orphan_delete(data)
 
     def execute(self, context):
-        datas = [bpy.data.collections, bpy.data.objects, bpy.data.meshes, bpy.data.actions]
+        datas = [
+            bpy.data.collections,
+            bpy.data.objects,
+            bpy.data.meshes,
+            bpy.data.actions,
+        ]
 
         for coll_del in context.scene.collection.children_recursive:
             del_state = True
             if any(
                 scene
                 for scene in bpy.data.scenes
-                if coll_del in scene.collection.children_recursive and scene is not context.scene
+                if coll_del in scene.collection.children_recursive
+                and scene is not context.scene
             ):
                 del_state = False
             if del_state:
@@ -389,7 +413,9 @@ class PIPE_OT_Save_Scenes_Separately(Operator):
         path_full = context.blend_data.filepath
         name = bpy.path.basename(path_full)
 
-        scene_file_name = (name.split(".blend")[0] + "_" + self.scene_name + ".blend").replace(
+        scene_file_name = (
+            name.split(".blend")[0] + "_" + self.scene_name + ".blend"
+        ).replace(
             "__", "_"
         )  # reduce underscores just in case
         filepath_new = self.filepath_new + scene_file_name
@@ -469,7 +495,11 @@ class PIPE_OT_Override_And_Snap_Rigged(Operator):
     def execute(self, context):
 
         empty = context.active_object
-        transforms = (empty.location.copy(), empty.rotation_euler.copy(), empty.scale.copy())
+        transforms = (
+            empty.location.copy(),
+            empty.rotation_euler.copy(),
+            empty.scale.copy(),
+        )
         print(transforms)
         collection = empty.instance_collection
         reference = None
@@ -516,19 +546,27 @@ class PIPE_OT_Create_Folders(Operator):
 
     def execute(self, context):
         paths = list(
-            [project.project_path for project in context.scene.ammopipe_project_properties]
+            [
+                project.project_path
+                for project in context.scene.ammopipe_project_properties
+            ]
         )
         projects_names = list(
-            [project.project_name for project in context.scene.ammopipe_project_properties]
+            [
+                project.project_name
+                for project in context.scene.ammopipe_project_properties
+            ]
         )
         for i in range(len(paths)):
             # Root Project Folder
             project = context.scene.ammopipe_project_properties[i]
-            master_path = paths[i]
+            master_path = bpy.path.abspath(paths[i])
             project_name = projects_names[i]
             master_path = os.path.join(master_path, project_name)
             Path(master_path).mkdir(parents=True, exist_ok=True)
-            self.report({"INFO"}, f"'{projects_names}' Project folder created at {paths}")
+            self.report(
+                {"INFO"}, f"'{projects_names}' Project folder created at {paths}"
+            )
             # Subfolders
             subfolders = [
                 (prop.identifier, prop.name)
@@ -536,7 +574,9 @@ class PIPE_OT_Create_Folders(Operator):
                 if ("use" in prop.identifier and getattr(project, prop.identifier))
             ]
             for subfolder in subfolders:
-                Path(os.path.join(master_path, subfolder[1])).mkdir(parents=True, exist_ok=True)
+                Path(os.path.join(master_path, subfolder[1])).mkdir(
+                    parents=True, exist_ok=True
+                )
                 # Create Scenes
                 if subfolder[1] == "Animatic" or subfolder[1] == "Scenes":
                     if len(project.project_scenes) > 0:
@@ -544,10 +584,12 @@ class PIPE_OT_Create_Folders(Operator):
                             count = "%02d" % s
                             scene_name = "scene_" + count
                             if project.project_scenes[s].name.strip():
-                                scene_name = scene_name + "_" + project.project_scenes[s].name
-                            Path(os.path.join(master_path, subfolder[1], scene_name)).mkdir(
-                                parents=True, exist_ok=True
-                            )
+                                scene_name = (
+                                    scene_name + "_" + project.project_scenes[s].name
+                                )
+                            Path(
+                                os.path.join(master_path, subfolder[1], scene_name)
+                            ).mkdir(parents=True, exist_ok=True)
         return {"FINISHED"}
 
 
