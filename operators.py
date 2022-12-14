@@ -41,6 +41,9 @@ class Project_Properties(PropertyGroup):
     use_utilities: BoolProperty(
         name="Utilities", description="Project has Utilities", default=True
     )
+    use_renders: BoolProperty(
+        name="Renders", description="Project has Renders", default=True
+    )
     project_scenes: CollectionProperty(type=Project_Scenes)
     project_scenes_list_show: BoolProperty(name="Show Scenes List", default=True)
 

@@ -528,6 +528,14 @@ class PIPE_PT_AmmoPipe_Project_Panel(Panel):
                 icon="TOOL_SETTINGS",
                 toggle=True,
             )
+            row = col_types.row()
+            row.prop(
+                project,
+                "use_renders",
+                text="Renders",
+                icon="RENDER_RESULT",
+                toggle=True,
+            )
 
             if project.use_animatic or project.use_scenes:
                 box_scenes = col_types.box()

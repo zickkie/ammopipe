@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Ammonite Pipeline",
     "author": "Arthur Shapriro",
-    "version": (0, 0, 7),
+    "version": (0, 1, 0),
     "blender": (3, 3, 1),
     "location": "View3D > N-Panel",
     "description": "Ammonite Animation Stiduio Pipeline",
