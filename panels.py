@@ -244,7 +244,6 @@ class PIPE_PT_AmmoPipe_Versioning_Panel(Panel):
             row = col.row(align=True)
             row.label(text="Next version is:")
             row = col.row(align=True)
-            row.alert = True
             name = os.path.splitext(os.path.basename(directory_files()[2]))[0]
             new_name = (
                 next_relative_name(
