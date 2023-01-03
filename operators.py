@@ -344,13 +344,13 @@ class WM_OT_Delete_Current_Scene(Operator):
             self.recursive_orphan_delete(data)
 
     def execute(self, context):
+        """
         datas = [
             bpy.data.collections,
             bpy.data.objects,
             bpy.data.meshes,
             bpy.data.actions,
         ]
-
         for coll_del in context.scene.collection.children_recursive:
             del_state = True
             if any(
@@ -366,15 +366,93 @@ class WM_OT_Delete_Current_Scene(Operator):
                         bpy.data.actions.remove(ob_del.animation_data.action)
                     bpy.data.objects.remove(ob_del)
                 bpy.data.collections.remove(coll_del)
-
+        """
+        # I'll try existing purge operator
+        # as manual removal takes enormous amount of time
         bpy.data.scenes.remove(context.scene, do_unlink=True)
+        bpy.ops.outliner.orphans_purge(
+            do_local_ids=True, do_linked_ids=True, do_recursive=True
+        )
+        """
         for data in datas:
             self.recursive_orphan_delete(data)
+        """
 
         return {"FINISHED"}
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
+
+
+class PIPE_OT_Localize_Shared_Collection(Operator):
+    """Localize Shared Collection"""
+
+    bl_idname = "pipeline.localize_shared_collection"
+    bl_label = "Localize Shared Collection"
+    bl_options = {"REGISTER", "UNDO"}
+
+    coll: StringProperty()
+
+    def execute(self, context):
+        # Capture source data
+        old_scene = context.window.scene
+        shared_coll = context.scene.collection.children[self.coll]
+        shared_coll_name = shared_coll.name
+        print(shared_coll_name)
+        shared_coll.ammopipe_localize_collection = True
+        old_scene_parents = [
+            collection
+            for collection in context.scene.collection.children_recursive
+            if shared_coll_name in collection.children
+        ]
+        if shared_coll_name in context.scene.collection.children:
+            old_scene_parents.append(context.scene.collection)
+        print(old_scene_parents)
+        for scene in bpy.data.scenes:
+            if scene.ammopipe_source_scene:
+                source_scene = scene
+                break
+        blocks_recursive_property(old_scene, shared_coll)
+
+        # Create new Scene
+        bpy.ops.scene.new(type="FULL_COPY")
+        scene_temp = context.window.scene
+        scene_temp.name = "_TEMP_COPY"
+        scene_temp.ammopipe_workflow = source_scene.ammopipe_workflow
+        scene_temp.ammopipe_source_scene = False
+
+        # Link the localized collection to the original scene
+        for coll in scene_temp.collection.children:
+            if coll.ammopipe_localize_collection:
+                coll_new = coll
+                coll_new_name = coll_new.name
+                for coll_old in old_scene_parents:
+                    coll_old.children.link(coll_new)
+                    coll_old.children.unlink(shared_coll)
+
+        # Delete the temporary scene
+        bpy.data.scenes.remove(scene_temp, do_unlink=True)
+        bpy.ops.outliner.orphans_purge(
+            do_local_ids=True, do_linked_ids=True, do_recursive=True
+        )
+        context.window.scene = old_scene
+
+        # Naming
+        coll_new = old_scene.collection.children[coll_new_name]
+        for coll_new_child in coll_new.children_recursive:
+            for ob_new in coll_new_child.objects:
+                if ob_new.animation_data and ob_new.animation_data.action:
+                    action = ob_new.animation_data.action
+                    action_source = bpy.data.actions[action.ammopipe_source_action]
+                    ob_new.animation_data.action.name = (
+                        action_source.name + "_" + old_scene.name
+                    )
+                ob_source = bpy.data.objects[ob_new.ammopipe_source_object]
+                ob_new.name = ob_source.name + "_" + old_scene.name
+            coll_new_child.name = coll_new_child.ammopipe_source_collection
+        coll_new.name = shared_coll_name + "_" + old_scene.name
+
+        return {"FINISHED"}
 
 
 class PIPE_OT_Set_Filepath_From_Current(Operator):
@@ -609,6 +687,7 @@ classes = (
     WM_OT_Add_New_Scene,
     WM_OT_Delete_Current_Scene,
     PIPE_OT_Set_Source_Scene,
+    PIPE_OT_Localize_Shared_Collection,
     PIPE_OT_Set_Filepath_From_Current,
     PIPE_OT_Save_Scenes_Separately,
     PIPE_OT_Set_Workflow_Asset,
