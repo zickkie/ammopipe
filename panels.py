@@ -324,6 +324,47 @@ class PIPE_PT_AmmoPipe_Scenes_Naming_Panel(Panel):
         )
 
 
+class PIPE_PT_AmmoPipe_Scene_Collections_Localize_Panel(Panel):
+    """Ammonite Pipeline Scene Collections Localize Panel"""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "AmmoPipe"
+    bl_label = "Scenes Collection Localize"
+    bl_order = 1
+    bl_parent_id = "PIPE_PT_AmmoPipe_Scenes_Management_Panel"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        col = layout.column(align=True)
+        if context.scene.ammopipe_source_scene:
+            row = col.row()
+            row.label(
+                text="Localize function is redundant for the Source Scene", icon="ERROR"
+            )
+            return
+        if any(
+            coll
+            for coll in scene.collection.children
+            if coll.ammopipe_collection_share_enum == "Link"
+        ):
+            for collection in scene.collection.children:
+                if collection.ammopipe_collection_share_enum == "Link":
+                    row = col.row()
+                    row.label(text=collection.name, icon="OUTLINER_COLLECTION")
+                    localize = row.operator(
+                        PIPE_OT_Localize_Shared_Collection.bl_idname,
+                        text="Localize",
+                        icon="LIBRARY_DATA_OVERRIDE",
+                    )
+                    localize.coll = collection.name
+        else:
+            row = col.row()
+            row.label(text="No Collection to Localize", icon="ERROR")
+
+
 class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
     """Ammonite Pipeline Scenes Collections Panel"""
 
@@ -331,7 +372,7 @@ class PIPE_PT_AmmoPipe_Scenes_Collections_Panel(Panel):
     bl_region_type = "UI"
     bl_category = "AmmoPipe"
     bl_label = "Scenes Collections"
-    bl_order = 1
+    bl_order = 2
     bl_parent_id = "PIPE_PT_AmmoPipe_Scenes_Management_Panel"
 
     def draw(self, context):
@@ -372,7 +413,7 @@ class PIPE_PT_AmmoPipe_Scenes_Save_Panel(Panel):
     bl_region_type = "UI"
     bl_category = "AmmoPipe"
     bl_label = "Scenes Save"
-    bl_order = 2
+    bl_order = 3
     bl_parent_id = "PIPE_PT_AmmoPipe_Scenes_Management_Panel"
 
     @classmethod
@@ -626,6 +667,7 @@ classes = (
     PIPE_PT_AmmoPipe_Scenes_Management_Panel,
     PIPE_PT_AmmoPipe_Scenes_Naming_Panel,
     PIPE_PT_AmmoPipe_Scenes_Collections_Panel,
+    PIPE_PT_AmmoPipe_Scene_Collections_Localize_Panel,
     PIPE_PT_AmmoPipe_Scenes_Save_Panel,
     PIPE_PT_AmmoPipe_Project_Panel,
 )
@@ -684,7 +726,7 @@ def register():
         default=True,
     )
     bpy.types.Scene.ammopipe_naming_pop_up_info = BoolProperty(
-        name="! Data-Blocks Naming Infp !",
+        name="! Data-Blocks Naming Info !",
         description="Naming of the data-blocks can be standardized any time, \nand it is recommended to do that in the beginning of the working with Asset. \nSee details in the sub-panel below",
         default=False,
     )
@@ -702,6 +744,11 @@ def register():
         default="Link",
     )
     bpy.types.Collection.ammopipe_source_collection = StringProperty(default="")
+    bpy.types.Collection.ammopipe_localize_collection = BoolProperty(
+        name="Collection Marked for being Localized",
+        description="",
+        default=False,
+    )
     bpy.types.Object.ammopipe_source_object = StringProperty(default="")
     bpy.types.Action.ammopipe_source_action = StringProperty(default="")
     bpy.types.Scene.ammopipe_scene_name_suffix = StringProperty(
@@ -752,6 +799,7 @@ def unregister():
     del bpy.types.Scene.ammopipe_version_step
     del bpy.types.Collection.ammopipe_collection_share_enum
     del bpy.types.Collection.ammopipe_source_collection
+    del bpy.types.Collection.ammopipe_localize_collection
     del bpy.types.Object.ammopipe_source_object
     del bpy.types.Action.ammopipe_source_action
     del bpy.types.Scene.ammopipe_scene_name_suffix
